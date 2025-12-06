@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(const WeatherApp());
 }
 
@@ -70,9 +73,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false; // Tracks loading state during API call
   String? _errorMessage; // Holds error message if API call fails
 
-  // Replace with your actual OpenWeatherMap API key
+  // API key loaded from .env file
   // Get your free API key at: https://openweathermap.org/api
-  static const String _apiKey = 'YOUR_API_KEY';
+  static final String _apiKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
 
   // Fetch weather data from OpenWeatherMap API
   Future<void> _fetchWeather(String city) async {
