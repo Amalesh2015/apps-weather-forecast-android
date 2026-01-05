@@ -2,14 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   runApp(const WeatherApp());
 }
-
 
 // Main App Widget
 class WeatherApp extends StatelessWidget {
@@ -30,52 +28,30 @@ class WeatherApp extends StatelessWidget {
   }
 }
 
-// Weather Model Class - Enhanced with more details
+// Weather Model Class - Parses JSON data from OpenWeatherMap API
 class WeatherModel {
   final String cityName;
   final double temperature;
-  final double feelsLike;
   final int humidity;
   final String description;
   final String icon;
-  final double windSpeed;
-  final DateTime sunrise;
-  final DateTime sunset;
-  final int timezoneOffset; // Timezone offset in seconds
 
   WeatherModel({
     required this.cityName,
     required this.temperature,
-    required this.feelsLike,
     required this.humidity,
     required this.description,
     required this.icon,
-    required this.windSpeed,
-    required this.sunrise,
-    required this.sunset,
-    required this.timezoneOffset,
   });
 
   // Factory constructor to create WeatherModel from JSON response
   factory WeatherModel.fromJson(Map<String, dynamic> json) {
-    // Get the timezone offset from API (in seconds from UTC)
-    int tzOffset = json['timezone'] ?? 0;
-    
-    // Convert Unix timestamps to DateTime with city's timezone
-    DateTime sunriseUtc = DateTime.fromMillisecondsSinceEpoch(json['sys']['sunrise'] * 1000, isUtc: true);
-    DateTime sunsetUtc = DateTime.fromMillisecondsSinceEpoch(json['sys']['sunset'] * 1000, isUtc: true);
-    
     return WeatherModel(
       cityName: json['name'],
       temperature: json['main']['temp'].toDouble(),
-      feelsLike: json['main']['feels_like'].toDouble(),
       humidity: json['main']['humidity'],
       description: json['weather'][0]['description'],
       icon: json['weather'][0]['icon'],
-      windSpeed: json['wind']['speed'].toDouble(),
-      sunrise: sunriseUtc.add(Duration(seconds: tzOffset)),
-      sunset: sunsetUtc.add(Duration(seconds: tzOffset)),
-      timezoneOffset: tzOffset,
     );
   }
 }
@@ -96,20 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
   WeatherModel? _weather; // Holds weather data after successful API call
   bool _isLoading = false; // Tracks loading state during API call
   String? _errorMessage; // Holds error message if API call fails
-  bool _isCelsius = true; // Temperature unit toggle
 
   // API key loaded from .env file
   // Get your free API key at: https://openweathermap.org/api
   static final String _apiKey = dotenv.env['OPENWEATHER_API_KEY'] ?? '';
-
-  // Convert temperature based on unit
-  double _convertTemp(double celsius) {
-    return _isCelsius ? celsius : (celsius * 9 / 5) + 32;
-  }
-
-  String _getTempUnit() {
-    return _isCelsius ? '°C' : '°F';
-  }
 
   // Fetch weather data from OpenWeatherMap API
   Future<void> _fetchWeather(String city) async {
@@ -197,41 +163,15 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const SizedBox(height: 40),
                 
-                // App Title with Unit Toggle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        '🌤️ Weather Forecast',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1565C0),
-                        ),
-                      ),
-                    ),
-                    // Temperature Unit Toggle
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          _buildUnitButton('°C', _isCelsius),
-                          _buildUnitButton('°F', !_isCelsius),
-                        ],
-                      ),
-                    ),
-                  ],
+                // App Title
+                const Text(
+                  '🌤️ Weather Forecast',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1565C0),
+                  ),
                 ),
                 const SizedBox(height: 40),
                 
@@ -390,20 +330,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             
                             // Temperature Display
                             Text(
-                              '${_convertTemp(_weather!.temperature).toStringAsFixed(1)}${_getTempUnit()}',
+                              '${_weather!.temperature.toStringAsFixed(1)}°C',
                               style: const TextStyle(
                                 fontSize: 56,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
-                              ),
-                            ),
-                            
-                            // Feels Like Temperature
-                            Text(
-                              'Feels like ${_convertTemp(_weather!.feelsLike).toStringAsFixed(1)}${_getTempUnit()}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.white70,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -454,150 +385,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                
-                // Additional Info (Sunrise/Sunset, Wind Speed)
-                if (_weather != null) _buildAdditionalInfo(),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  // Unit Toggle Button
-  Widget _buildUnitButton(String unit, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _isCelsius = unit == '°C';
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1976D2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          unit,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.grey[700],
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Additional Weather Information
-  Widget _buildAdditionalInfo() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.wb_sunny, color: Colors.orange, size: 32),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Sunrise',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat.jm().format(_weather!.sunrise),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1565C0),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.nightlight_round, color: Colors.deepPurple, size: 32),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Sunset',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat.jm().format(_weather!.sunset),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1565C0),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Wind Speed Card
-          Card(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.air, color: Color(0xFF1976D2), size: 32),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Wind Speed',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      Text(
-                        '${_weather!.windSpeed.toStringAsFixed(1)} m/s',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1565C0),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,0 +1,111 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  runApp(const WeatherApp());
+}
+
+class WeatherApp extends StatelessWidget {
+  const WeatherApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Weather Forecast',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        fontFamily: 'Roboto',
+        useMaterial3: true,
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}
+
+class ForecastDay {
+  final DateTime date;
+  final double tempMax;
+  final double tempMin;
+  final String description;
+  final String icon;
+
+  ForecastDay({
+    required this.date,
+    required this.tempMax,
+    required this.tempMin,
+    required this.description,
+    required this.icon,
+  });
+
+  factory ForecastDay.fromJson(Map<String, dynamic> json) {
+    return ForecastDay(
+      date: DateTime.fromMillisecondsSinceEpoch(json['dt'] * 1000),
+      tempMax: json['temp']['max'].toDouble(),
+      tempMin: json['temp']['min'].toDouble(),
+      description: json['weather'][0]['description'],
+      icon: json['weather'][0]['icon'],
+    );
+  }
+}
+
+class WeatherModel {
+  final String cityName;
+  final String country;
+  final double temperature;
+  final double feelsLike;
+  final int humidity;
+  final String description;
+  final String icon;
+  final double windSpeed;
+  final DateTime sunrise;
+  final DateTime sunset;
+  final List<ForecastDay> forecast;
+
+  WeatherModel({
+    required this.cityName,
+    required this.country,
+    required this.temperature,
+    required this.feelsLike,
+    required this.humidity,
+    required this.description,
+    required this.icon,
+    required this.windSpeed,
+    required this.sunrise,
+    required this.sunset,
+    required this.forecast,
+  });
+
+  factory WeatherModel.fromJson(Map<String, dynamic> currentJson, Map<String, dynamic> forecastJson) {
+    List<ForecastDay> forecastList = [];
+    if (forecastJson['daily'] != null) {
+      forecastList = (forecastJson['daily'] as List).take(7).map((day) => ForecastDay.fromJson(day)).toList();
+    }
+
+    return WeatherModel(
+      cityName: currentJson['name'],
+      country: currentJson['sys']['country'],
+      temperature: currentJson['main']['temp'].toDouble(),
+      feelsLike: currentJson['main']['feels_like'].toDouble(),
+      humidity: currentJson['main']['humidity'],
+      description: currentJson['weather'][0]['description'],
+      icon: currentJson['weather'][0]['icon'],
+      windSpeed: currentJson['wind']['speed'].toDouble(),
+      sunrise: DateTime.fromMillisecondsSinceEpoch(currentJson['sys']['sunrise'] * 1000),
+      sunset: DateTime.fromMillisecondsSinceEpoch(currentJson['sys']['sunset'] * 1000),
+      forecast: forecastList,
+    );
+  }
+}
+
+class CityInfo {
+  final String summary;
+  final String? imageUrl;
+  CityInfo({required this.summary, this.imageUrl});
+}
